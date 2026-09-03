@@ -1,0 +1,11 @@
+iSDS Proxy - versione a struttura piatta per GitHub/Railway
+
+Tutti i file sono in questa singola cartella (nessuna sottocartella di codice).
+Questo evita i problemi di upload su GitHub via browser.
+
+Per caricare su GitHub:
+1. Add file -> Upload files
+2. Trascina TUTTI questi file (puoi selezionarli tutti insieme)
+3. Commit
+
+Railway li prenderà e avvierà con: npm start (node server.js)
