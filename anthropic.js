@@ -4,7 +4,11 @@
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '6000', 10);
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '8000', 10);
+
+// Marcatore di versione del prompt: compare nella risposta /extract (campo _prompt_version).
+// Serve SOLO per verificare quale build sta girando davvero su Railway.
+const PROMPT_VERSION = 'sez-7-10-v3';
 
 // Prompt di estrazione SDS (identico a quello del client originale).
 // Centralizzato qui in modo che posso aggiornarlo per tutti i clienti con un solo redeploy.
@@ -13,7 +17,7 @@ function buildSdsPrompt(filename) {
 Leggi SOLO le sezioni 1, 2, 3, 7, 8, 9, 10, 14, 15. Ignora tutto il resto.
 IMPORTANTE: se la scheda e' in inglese o altra lingua, TRADUCI SEMPRE in ITALIANO tutti i valori testuali descrittivi (es. stato fisico, colore, odore, usi, misure, DPI, note, denominazioni, condizioni, reattivita'). NON tradurre invece: codici tecnici (H###, EUH###, P###), numeri CAS/CE/Index/ONU, formule, sigle normative, nomi chimici IUPAC ufficiali.
 Rispondi SOLO con array JSON valido, senza testo aggiuntivo o backtick.
-Non inventare dati: usa "" se non trovato.
+Non inventare dati: usa "" se non trovato. Per i campi delle SEZ 7 e 10 includi SEMPRE la chiave anche se il valore e' "" (stringa vuota).
 
 Per ogni prodotto estrai:
 SEZ 1: nome_prodotto, codice_prodotto, numero_cas, numero_ce, numero_index, fornitore_nome, fornitore_indirizzo, fornitore_telefono, uso_raccomandato, numero_emergenza
@@ -91,6 +95,7 @@ export async function extractSds({ pdfBase64, filename }) {
   if (!Array.isArray(arr)) arr = [arr];
   return {
     products: arr,
-    usage: data.usage || null  // tokens usati, utile per metriche
+    usage: data.usage || null,  // tokens usati, utile per metriche
+    promptVersion: PROMPT_VERSION
   };
 }
