@@ -1,11 +1,58 @@
-iSDS Proxy - versione a struttura piatta per GitHub/Railway
+═══════════════════════════════════════════════════════════════
+  iSDS PROXY — PACCHETTO COMPLETO PER DEPLOY (11 ott 2026)
+═══════════════════════════════════════════════════════════════
 
-Tutti i file sono in questa singola cartella (nessuna sottocartella di codice).
-Questo evita i problemi di upload su GitHub via browser.
+COSA C'È DI NUOVO IN QUESTA VERSIONE
+------------------------------------
+• anthropic.js ora estrae le SEZIONI 7 e 10 (prima mancavano)
+• Estrae anche famiglie_chimiche / famiglie_incompatibili (matrice incompatibilità)
+• MAX_TOKENS alzato a 8000 (prima 6000) per risposte più lunghe
+• Aggiunto un MARCATORE DI VERSIONE "sez-7-10-v3" nella risposta,
+  così possiamo verificare con certezza quale codice sta girando
 
-Per caricare su GitHub:
-1. Add file -> Upload files
-2. Trascina TUTTI questi file (puoi selezionarli tutti insieme)
-3. Commit
+───────────────────────────────────────────────────────────────
+COME CARICARE SU GITHUB (il modo più semplice e sicuro)
+───────────────────────────────────────────────────────────────
 
-Railway li prenderà e avvierà con: npm start (node server.js)
+1. Vai sulla tua repo del proxy su github.com
+   (quella collegata a Railway)
+
+2. Clicca "Add file" → "Upload files"
+
+3. Trascina DENTRO tutti i file di questo zip (NON la cartella,
+   i file singoli: server.js, anthropic.js, public.js, ecc.)
+   GitHub ti chiederà se vuoi sovrascrivere i file esistenti: SÌ.
+
+4. In basso scrivi un messaggio tipo "deploy sez 7 10 v3"
+   e clicca "Commit changes".
+
+5. Railway parte da solo entro 1-2 minuti.
+   Vai su Railway → Deployments → aspetta "Success".
+
+───────────────────────────────────────────────────────────────
+COME VERIFICARE CHE SIA ANDATA (test di 1 minuto)
+───────────────────────────────────────────────────────────────
+
+1. Apri eris-take-care.web.app/isds
+2. Premi F12 → scheda "Network" → nel filtro scrivi: extract
+3. Importa una scheda NUOVA
+4. Clicca la riga "extract" → scheda "Response"
+5. Cerca la parola:  promptVersion
+
+   ✅ Se vedi  "promptVersion": "sez-7-10-v3"
+      → il proxy nuovo GIRA. Vedrai anche i campi:
+        reattivita, stoccaggio_condizioni, materiali_incompatibili
+
+   ❌ Se NON vedi promptVersion (o è null)
+      → Railway NON ha preso il file nuovo.
+        Il problema è il collegamento GitHub↔Railway
+        (branch sbagliato o auto-deploy spento), NON il codice.
+        In quel caso: Railway → Settings → Source → controlla
+        che il branch sia quello su cui hai appena caricato.
+
+───────────────────────────────────────────────────────────────
+NOTA: le variabili d'ambiente su Railway NON si toccano.
+ANTHROPIC_API_KEY, ADMIN_TOKEN, ecc. restano quelle che ci sono già.
+(Opzionale: puoi aggiungere MAX_TOKENS=8000 ma non è necessario,
+ è già il default nel codice nuovo.)
+═══════════════════════════════════════════════════════════════

@@ -1,0 +1,18 @@
+{
+  "ISDS-2025-DEMO-ALFA": {
+    "cliente": "Cliente Demo Alfa (seed)",
+    "piano": "professional",
+    "giorni": 365,
+    "stato": "attivo",
+    "createdAt": "2026-04-21T00:00:00.000Z",
+    "note": "Codice di esempio generato durante il setup"
+  },
+  "ISDS-2025-STAFF-ERIS": {
+    "cliente": "Team ERIS (interno)",
+    "piano": "business",
+    "giorni": 9999,
+    "stato": "attivo",
+    "createdAt": "2026-04-21T00:00:00.000Z",
+    "note": "Uso interno ERIS — non bloccare"
+  }
+}

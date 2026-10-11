@@ -156,7 +156,8 @@ router.post('/extract', async (req, res) => {
       products: result.products,
       billed: { isExtra: false, amountEur: 0 },
       user: { uid: fbUser.sub, email: fbUser.email || null },
-      tokens: result.usage
+      tokens: result.usage,
+      promptVersion: result.promptVersion || null
     });
   }
 
@@ -170,7 +171,8 @@ router.post('/extract', async (req, res) => {
     billed: { isExtra, amountEur: isExtra ? getPlan(entry.piano).extraEur : 0 },
     remaining,
     isNextExtra: nextIsExtra,
-    tokens: result.usage
+    tokens: result.usage,
+    promptVersion: result.promptVersion || null
   });
 });
 
