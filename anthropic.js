@@ -48,4 +48,54 @@ export async function extractSds({ pdfBase64, filename }) {
     messages: [{
       role: 'user',
       content: [
-        { type: 'docum
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+        { type: 'text', text: buildSdsPrompt(filename) }
+      ]
+    }]
+  };
+
+  const resp = await fetch(ANTHROPIC_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await resp.json();
+
+  if (!resp.ok) {
+    // Non propagare messaggi interni Anthropic tali e quali verso il client.
+    // Logghiamo lato server e ritorniamo un errore generico.
+    console.error('[anthropic] errore API:', resp.status, data?.error);
+    const msg = data?.error?.message || `Errore Anthropic (HTTP ${resp.status})`;
+    const err = new Error(msg);
+    err.statusCode = resp.status;
+    err.isAnthropic = true;
+    throw err;
+  }
+
+  // Estrae il JSON pulito dalla risposta (stesso parsing del client originale)
+  const text = (data.content || []).map(b => b.text || '').join('');
+  const clean = text.replace(/```json|```/g, '').trim();
+  let arr;
+  try {
+    arr = JSON.parse(clean);
+  } catch {
+    const m = clean.match(/\[[\s\S]*\]/);
+    if (m) arr = JSON.parse(m[0]);
+    else {
+      const err = new Error('Risposta AI non parsabile come JSON');
+      err.statusCode = 502;
+      throw err;
+    }
+  }
+  if (!Array.isArray(arr)) arr = [arr];
+  return {
+    products: arr,
+    usage: data.usage || null,  // tokens usati, utile per metriche
+    promptVersion: PROMPT_VERSION
+  };
+}
