@@ -4,11 +4,14 @@
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '8000', 10);
+// Tetto output. Un JSON SDS completo sta ampiamente sotto i 4000 token;
+// 8000 era un margine inutile (non incide sul costo, che si paga sull'output REALE,
+// ma un tetto più basso evita risposte troncate anomale e chiarisce l'intento).
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '4096', 10);
 
 // Marcatore di versione del prompt: compare nella risposta /extract (campo _prompt_version).
 // Serve SOLO per verificare quale build sta girando davvero su Railway.
-const PROMPT_VERSION = 'sez-7-10-16-v4';
+const PROMPT_VERSION = 'sez-7-10-16-v5-slim';
 
 // Prompt di estrazione SDS (identico a quello del client originale).
 // Centralizzato qui in modo che posso aggiornarlo per tutti i clienti con un solo redeploy.
@@ -18,6 +21,7 @@ Leggi SOLO le sezioni 1, 2, 3, 7, 8, 9, 10, 14, 15, 16 (e l'intestazione/piè di
 IMPORTANTE: se la scheda e' in inglese o altra lingua, TRADUCI SEMPRE in ITALIANO tutti i valori testuali descrittivi (es. stato fisico, colore, odore, usi, misure, DPI, note, denominazioni, condizioni, reattivita'). NON tradurre invece: codici tecnici (H###, EUH###, P###), numeri CAS/CE/Index/ONU, formule, sigle normative, nomi chimici IUPAC ufficiali.
 Rispondi SOLO con array JSON valido, senza testo aggiuntivo o backtick.
 Non inventare dati: usa "" se non trovato. Per i campi delle SEZ 7 e 10 includi SEMPRE la chiave anche se il valore e' "" (stringa vuota).
+COMPATTEZZA (riduce i token di risposta senza perdere dati): per i valori testuali riporta solo l'informazione essenziale, senza riformulare o ripetere il testo della scheda per esteso. Niente preamboli, niente ripetizione del nome del campo nel valore, niente spazi/righe superflue. Non estrarre campi non elencati sotto.
 
 Per ogni prodotto estrai:
 SEZ 1: nome_prodotto, codice_prodotto, numero_cas, numero_ce, numero_index, fornitore_nome, fornitore_indirizzo, fornitore_telefono, uso_raccomandato, numero_emergenza
@@ -28,7 +32,7 @@ SEZ 8: vlep, misure_ingegneristiche, dpi_respiratorio, dpi_mani, dpi_occhi, dpi_
 SEZ 9: stato_fisico, colore, odore, ph, punto_ebollizione, punto_fusione, punto_infiammabilita, densita, solubilita, pressione_vapore, viscosita
 SEZ 10: reattivita, stabilita_chimica, reazioni_pericolose, condizioni_da_evitare, materiali_incompatibili, prodotti_decomposizione
 SEZ 14: numero_onu, denominazione_spedizione, classe_adr, gruppo_imballaggio, pericoli_ambientali, codice_tunnel, trasporto_note
-SEZ 15: reg_reach, reg_clp, reg_seveso, reg_voc, reg_altre
+SEZ 15: reg_reach, reg_seveso
 SEZ 16 / INTESTAZIONE: data_revisione_sds — la data di emissione o ultima revisione della scheda di sicurezza. Cercala nella sezione 16, nell'intestazione o nel piè di pagina (spesso indicata come "Data di revisione", "Revisione", "Data di compilazione", "Data di emissione", "Versione del", "Rev."). Riportala SEMPRE nel formato numerico GG/MM/AAAA (es. 15/03/2024). Se trovi solo mese e anno, usa 01/MM/AAAA. Se non la trovi, usa "".
 
 CLASSIFICAZIONE CHIMICA (per analisi incompatibilita') — in aggiunta, deduci dai dati della scheda:

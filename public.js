@@ -150,7 +150,7 @@ router.post('/extract', async (req, res) => {
   // Registra il consumo e prepara la risposta
   if (isFirebase) {
     // Modello Firebase: log minimale per-utente (traccia uso senza billing a codice)
-    try { await incrementUsage('firebase:' + fbUser.sub, false); } catch(e) {}
+    try { await incrementUsage('firebase:' + fbUser.sub, false, result.usage); } catch(e) {}
     return res.json({
       ok: true,
       products: result.products,
@@ -162,7 +162,7 @@ router.post('/extract', async (req, res) => {
   }
 
   // Modello a codici (legacy)
-  await incrementUsage(code, isExtra);
+  await incrementUsage(code, isExtra, result.usage);
   const newMonthUsage = (await getUsage(code)).byMonth[currentMonth()];
   const { remaining, isExtra: nextIsExtra } = computeRemaining(entry.piano, newMonthUsage);
   return res.json({

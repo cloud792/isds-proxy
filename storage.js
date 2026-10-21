@@ -101,12 +101,28 @@ export async function deleteCode(code) {
 //   "ISDS-2025-ALFA-0001": {
 //     "total": 42,                        // analisi totali lifetime
 //     "byMonth": {
-//       "2025-10": { included: 18, extra: 0 },
-//       "2025-11": { included: 100, extra: 7 }
+//       "2025-10": { included: 18, extra: 0, inTok: 90000, outTok: 42000, costUsd: 0.9 },
+//       "2025-11": { included: 100, extra: 7, inTok: ..., outTok: ..., costUsd: ... }
 //     },
+//     "tokIn": 132000,                     // token input lifetime
+//     "tokOut": 61000,                     // token output lifetime
+//     "costUsd": 1.8,                      // costo API lifetime (USD, stima da listino)
+//     "maxCostUsd": 0.083,                 // scheda singola più cara vista (per diagnosi)
 //     "lastUsedAt": "2025-11-20T11:03:00.000Z"
 //   }
 // }
+
+// Prezzo di listino del modello (USD per 1 MILIONE di token).
+// Aggiornabili via env senza toccare il codice.
+const PRICE_IN_PER_M  = parseFloat(process.env.PRICE_IN_PER_M  || '3');   // input  $/Mtok
+const PRICE_OUT_PER_M = parseFloat(process.env.PRICE_OUT_PER_M || '15');  // output $/Mtok
+
+export function costOfTokens(inTok, outTok) {
+  const i = (Number(inTok) || 0) / 1e6 * PRICE_IN_PER_M;
+  const o = (Number(outTok) || 0) / 1e6 * PRICE_OUT_PER_M;
+  return i + o;
+}
+
 export async function loadUsage() {
   return await readJson(USAGE_PATH, {});
 }
@@ -116,15 +132,32 @@ export async function getUsage(code) {
   return usage[code] || { total: 0, byMonth: {}, lastUsedAt: null };
 }
 
-export async function incrementUsage(code, isExtra) {
+// tokens = { input_tokens, output_tokens } (dal campo usage di Anthropic), opzionale.
+export async function incrementUsage(code, isExtra, tokens) {
   return await withLock('usage', async () => {
     const usage = await readJson(USAGE_PATH, {});
     const month = new Date().toISOString().slice(0, 7); // "2025-11"
     const entry = usage[code] || { total: 0, byMonth: {}, lastUsedAt: null };
     entry.total = (entry.total || 0) + 1;
-    entry.byMonth[month] = entry.byMonth[month] || { included: 0, extra: 0 };
-    if (isExtra) entry.byMonth[month].extra += 1;
-    else entry.byMonth[month].included += 1;
+    const m = entry.byMonth[month] || { included: 0, extra: 0 };
+    if (isExtra) m.extra = (m.extra || 0) + 1;
+    else m.included = (m.included || 0) + 1;
+
+    // ── Metriche token/costo (se il proxy le ha passate) ──
+    if (tokens) {
+      const inTok  = Number(tokens.input_tokens)  || 0;
+      const outTok = Number(tokens.output_tokens) || 0;
+      const cost   = costOfTokens(inTok, outTok);
+      m.inTok   = (m.inTok   || 0) + inTok;
+      m.outTok  = (m.outTok  || 0) + outTok;
+      m.costUsd = (m.costUsd || 0) + cost;
+      entry.tokIn    = (entry.tokIn    || 0) + inTok;
+      entry.tokOut   = (entry.tokOut   || 0) + outTok;
+      entry.costUsd  = (entry.costUsd  || 0) + cost;
+      if (cost > (entry.maxCostUsd || 0)) entry.maxCostUsd = cost;
+    }
+
+    entry.byMonth[month] = m;
     entry.lastUsedAt = new Date().toISOString();
     usage[code] = entry;
     await writeJsonAtomic(USAGE_PATH, usage);

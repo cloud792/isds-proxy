@@ -4,7 +4,7 @@
 
 import express from 'express';
 import crypto from 'node:crypto';
-import { loadCodes, upsertCode, deleteCode, loadUsage, getUsage } from './storage.js';
+import { loadCodes, upsertCode, deleteCode, loadUsage, getUsage, costOfTokens } from './storage.js';
 import { getPlan } from './plans.js';
 import { adminAuth } from './middleware-admin.js';
 
@@ -153,6 +153,86 @@ router.get('/usage/:code', async (req, res) => {
   const code = String(req.params.code).trim().toUpperCase();
   const u = await getUsage(code);
   res.json({ ok: true, code, usage: u });
+});
+
+// ─── GET /admin/costs ─────────────────────────────────────────────
+// Costi API REALI (dai token restituiti da Anthropic), aggregati.
+// Visibile SOLO all'admin (protetto da ADMIN_TOKEN). Mai esposto ai clienti.
+// Query opzionale: ?month=YYYY-MM (default: mese corrente)
+router.get('/costs', async (req, res) => {
+  const usage = await loadUsage();
+  const codes = await loadCodes();
+  const month = (req.query?.month && /^\d{4}-\d{2}$/.test(req.query.month))
+    ? req.query.month
+    : new Date().toISOString().slice(0, 7);
+
+  const PRICE_IN_PER_M  = parseFloat(process.env.PRICE_IN_PER_M  || '3');
+  const PRICE_OUT_PER_M = parseFloat(process.env.PRICE_OUT_PER_M || '15');
+
+  let life = { n: 0, inTok: 0, outTok: 0, costUsd: 0 };
+  let cur  = { n: 0, inTok: 0, outTok: 0, costUsd: 0 };
+  let maxSingleUsd = 0;
+  const perClient = [];
+
+  for (const [code, u] of Object.entries(usage)) {
+    const mu = u.byMonth?.[month] || {};
+    const mN = (mu.included || 0) + (mu.extra || 0);
+    // lifetime
+    life.n     += u.total || 0;
+    life.inTok += u.tokIn || 0;
+    life.outTok+= u.tokOut || 0;
+    life.costUsd += u.costUsd || 0;
+    if ((u.maxCostUsd || 0) > maxSingleUsd) maxSingleUsd = u.maxCostUsd || 0;
+    // mese richiesto
+    cur.n      += mN;
+    cur.inTok  += mu.inTok || 0;
+    cur.outTok += mu.outTok || 0;
+    cur.costUsd+= mu.costUsd || 0;
+
+    const c = codes[code];
+    const label = code.startsWith('firebase:')
+      ? (c?.cliente || 'Utente area riservata')
+      : (c?.cliente || '(codice rimosso)');
+    perClient.push({
+      code,
+      cliente: label,
+      piano: c?.piano || '-',
+      monthN: mN,
+      monthInTok: mu.inTok || 0,
+      monthOutTok: mu.outTok || 0,
+      monthCostUsd: +(mu.costUsd || 0).toFixed(4),
+      monthAvgUsd: mN ? +((mu.costUsd || 0) / mN).toFixed(4) : 0,
+      lifeN: u.total || 0,
+      lifeCostUsd: +(u.costUsd || 0).toFixed(4),
+      maxSingleUsd: +(u.maxCostUsd || 0).toFixed(4),
+      lastUsedAt: u.lastUsedAt
+    });
+  }
+
+  perClient.sort((a, b) => b.monthCostUsd - a.monthCostUsd);
+
+  const avgLifeUsd = life.n ? life.costUsd / life.n : 0;
+  const avgCurUsd  = cur.n  ? cur.costUsd  / cur.n  : 0;
+  const hasTokenData = life.inTok > 0 || life.outTok > 0;
+
+  res.json({
+    ok: true,
+    month,
+    pricing: { inPerM: PRICE_IN_PER_M, outPerM: PRICE_OUT_PER_M, currency: 'USD', model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5' },
+    hasTokenData,            // false = nessuna estrazione dopo l'aggiornamento proxy
+    lifetime: {
+      n: life.n, inTok: life.inTok, outTok: life.outTok,
+      costUsd: +life.costUsd.toFixed(4),
+      avgUsd: +avgLifeUsd.toFixed(4),
+      maxSingleUsd: +maxSingleUsd.toFixed(4)
+    },
+    current: {
+      n: cur.n, inTok: cur.inTok, outTok: cur.outTok,
+      costUsd: +cur.costUsd.toFixed(4),
+      avgUsd: +avgCurUsd.toFixed(4)
+    },
+    clients: perClient
+  });
 });
 
 export default router;
