@@ -2,10 +2,15 @@
 // Definizione piani iSDS e logica crediti server-side.
 // Deve rispecchiare quanto promesso nella brochure commerciale.
 
+// Allineato ai prezzi commerciali della landing page (fonte unica di verità):
+//   Base  = 49 €/mese · 20 schede incluse · schede extra 2,00 €
+//   Pro   = 99 €/mese · 50 schede incluse · schede extra 1,50 €
+// Le chiavi tecniche (starter/professional/business) restano per compatibilità
+// con i codici già emessi; 'name' riporta la denominazione commerciale.
 export const PLANS = {
-  payperuse:    { name: 'A consumo',   included: 0,   extraEur: 5.00, ppu: true  },
-  starter:      { name: 'Starter',     included: 20,  extraEur: 0.99, ppu: false },
-  professional: { name: 'Professional',included: 100, extraEur: 0.79, ppu: false },
+  payperuse:    { name: 'A consumo',   included: 0,   extraEur: 2.00, ppu: true  },
+  starter:      { name: 'Base',        included: 20,  extraEur: 2.00, ppu: false },
+  professional: { name: 'Pro',         included: 50,  extraEur: 1.50, ppu: false },
   business:     { name: 'Business',    included: 300, extraEur: 0.49, ppu: false }
 };
 
